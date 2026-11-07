@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ChatGPT Clone - Free AI Chatbot</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#212121">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   
   <!-- Highlight.js for Code Highlighting -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
@@ -48,6 +52,10 @@
         <button id="open-settings-btn" class="footer-btn">
           <i data-lucide="settings"></i>
           <span>Settings (API Key)</span>
+        </button>
+        <button id="install-app-btn" class="footer-btn hidden">
+          <i data-lucide="download"></i>
+          <span>Install App</span>
         </button>
         <button id="theme-toggle-btn" class="footer-btn">
           <i data-lucide="sun" id="theme-icon"></i>

@@ -1036,7 +1036,16 @@ async function testConnection() {
   }
 }
 
-// --- Mobile Sidebar Controls ---
+// --- Sidebar Controls (Desktop & Mobile) ---
+function toggleSidebar() {
+  if (window.innerWidth <= 768) {
+    elements.sidebar.classList.toggle('open');
+    elements.mobileOverlay.classList.toggle('active');
+  } else {
+    elements.sidebar.classList.toggle('collapsed');
+  }
+}
+
 function openSidebarMobile() {
   elements.sidebar.classList.add('open');
   elements.mobileOverlay.classList.add('active');
@@ -1056,8 +1065,8 @@ function setupEventListeners() {
   elements.openSettingsBtn.addEventListener('click', openSettingsModal);
   elements.topSettingsBtn.addEventListener('click', openSettingsModal);
 
-  // Mobile drawer
-  elements.openSidebarBtn.addEventListener('click', openSidebarMobile);
+  // Sidebar toggle
+  elements.openSidebarBtn.addEventListener('click', toggleSidebar);
   elements.closeSidebarBtn.addEventListener('click', closeSidebarMobile);
   elements.mobileOverlay.addEventListener('click', closeSidebarMobile);
 
@@ -1242,3 +1251,36 @@ function init() {
 }
 
 window.addEventListener('DOMContentLoaded', init);
+
+// --- Progressive Web App (PWA) Support ---
+let deferredPrompt = null;
+const installAppBtn = document.getElementById('install-app-btn');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  if (installAppBtn) {
+    installAppBtn.classList.remove('hidden');
+  }
+});
+
+if (installAppBtn) {
+  installAppBtn.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      installAppBtn.classList.add('hidden');
+    }
+    deferredPrompt = null;
+  });
+}
+
+// Register Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(err => {
+      console.log('Service Worker skipped:', err);
+    });
+  });
+}
