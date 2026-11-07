@@ -498,9 +498,10 @@ async function handleSendMessage() {
   setGenerationState(true);
   const botBubble = appendMessageElement('assistant', '', true);
 
+  let responseText = '';
+
   try {
     state.abortController = new AbortController();
-    let responseText = '';
 
     if (state.settings.provider === 'demo') {
       responseText = await streamDemoResponse(text, botBubble);
@@ -668,6 +669,9 @@ async function streamGeminiResponse(messages, targetBubble) {
           targetBubble.innerHTML = renderMarkdown(accumulatedText);
           scrollToBottom();
         }
+        if (parsed.candidates?.[0]?.finishReason) {
+          return accumulatedText;
+        }
       } catch (e) {
         // partial chunk, skip
       }
@@ -755,6 +759,9 @@ async function streamOpenAICompatibleResponse(messages, targetBubble) {
           accumulatedText += chunk;
           targetBubble.innerHTML = renderMarkdown(accumulatedText);
           scrollToBottom();
+        }
+        if (parsed.choices?.[0]?.finish_reason) {
+          return accumulatedText;
         }
       } catch (e) {}
     }
