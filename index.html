@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChatGPT Clone - Free AI Chatbot</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
+  
+  <!-- Highlight.js for Code Highlighting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  
+  <!-- Marked for Markdown Parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.1/marked.min.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-theme">
+  <div class="app-container">
+    <!-- Mobile Overlay -->
+    <div id="mobile-overlay" class="mobile-overlay"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <button id="new-chat-btn" class="btn-new-chat">
+          <i data-lucide="plus"></i>
+          <span>New chat</span>
+        </button>
+        <button id="close-sidebar-btn" class="icon-btn mobile-only" title="Close sidebar">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <!-- Chat History List -->
+      <div class="chat-history-container">
+        <div class="chat-history-label">Recent Chats</div>
+        <ul id="chat-list" class="chat-list">
+          <!-- Dynamically populated -->
+        </ul>
+      </div>
+
+      <!-- Sidebar Footer -->
+      <div class="sidebar-footer">
+        <button id="open-settings-btn" class="footer-btn">
+          <i data-lucide="settings"></i>
+          <span>Settings (API Key)</span>
+        </button>
+        <button id="theme-toggle-btn" class="footer-btn">
+          <i data-lucide="sun" id="theme-icon"></i>
+          <span id="theme-text">Light Mode</span>
+        </button>
+        <button id="clear-chats-btn" class="footer-btn text-danger">
+          <i data-lucide="trash-2"></i>
+          <span>Clear all chats</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Chat Workspace -->
+    <main class="main-content">
+      <!-- Top Bar -->
+      <header class="top-bar">
+        <div class="top-bar-left">
+          <button id="open-sidebar-btn" class="icon-btn" title="Open sidebar">
+            <i data-lucide="menu"></i>
+          </button>
+          <div class="model-badge" id="current-model-badge">
+            <span class="status-dot"></span>
+            <span id="active-model-name">Gemini 2.0 Flash (Free)</span>
+          </div>
+        </div>
+        <div class="top-bar-right">
+          <button id="top-settings-btn" class="icon-btn" title="Configure API Key">
+            <i data-lucide="key"></i>
+          </button>
+        </div>
+      </header>
+
+      <!-- Chat Messages Scroll Area -->
+      <section id="chat-messages" class="chat-messages">
+        <!-- Welcome Screen (shown when chat is empty) -->
+        <div id="welcome-screen" class="welcome-screen">
+          <div class="welcome-logo">
+            <div class="logo-inner">🤖</div>
+          </div>
+          <h2>What can I help with today?</h2>
+          <p class="welcome-subtitle">Free ChatGPT-like assistant running directly in your browser.</p>
+
+          <div class="suggestion-grid">
+            <button class="suggestion-card" data-prompt="Explain quantum computing in simple terms with an analogy.">
+              <i data-lucide="sparkles"></i>
+              <span>Explain quantum computing simply</span>
+            </button>
+            <button class="suggestion-card" data-prompt="Write a clean Python script to scrape top news headlines.">
+              <i data-lucide="code"></i>
+              <span>Write a Python scraper script</span>
+            </button>
+            <button class="suggestion-card" data-prompt="Give me 5 creative ideas for a weekend project in web development.">
+              <i data-lucide="lightbulb"></i>
+              <span>5 creative web project ideas</span>
+            </button>
+            <button class="suggestion-card" data-prompt="Draft a polite email asking for feedback on my recent job interview.">
+              <i data-lucide="mail"></i>
+              <span>Draft a polite follow-up email</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Messages dynamically rendered here -->
+      </section>
+
+      <!-- Bottom Chat Input Form -->
+      <footer class="chat-input-area">
+        <div class="input-box-wrapper">
+          <textarea
+            id="chat-input"
+            rows="1"
+            placeholder="Ask me anything..."
+            autofocus
+          ></textarea>
+          
+          <div class="input-actions">
+            <button id="stop-btn" class="btn-stop hidden" title="Stop generating">
+              <i data-lucide="square"></i>
+            </button>
+            <button id="send-btn" class="btn-send" title="Send message" disabled>
+              <i data-lucide="arrow-up"></i>
+            </button>
+          </div>
+        </div>
+        <div class="input-disclaimer">
+          Free AI Chatbot hosted on GitHub Pages • Supports Gemini & OpenAI API
+        </div>
+      </footer>
+    </main>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>AI & API Settings</h3>
+        <button id="close-modal-btn" class="icon-btn">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Notice Banner -->
+        <div class="info-alert">
+          <i data-lucide="shield-check"></i>
+          <div>
+            <strong>100% Private:</strong> Your API key is stored <em>only</em> inside your personal browser's <code>localStorage</code>. It is never uploaded to GitHub or any server.
+          </div>
+        </div>
+
+        <!-- Provider Select -->
+        <div class="form-group">
+          <label for="provider-select">AI Provider</label>
+          <select id="provider-select" class="form-control">
+            <option value="gemini">Google Gemini (Recommended - Free Tier)</option>
+            <option value="openai">OpenAI (ChatGPT)</option>
+            <option value="openrouter">OpenRouter (Multiple models)</option>
+            <option value="demo">Demo Mode (No API key required)</option>
+          </select>
+        </div>
+
+        <!-- API Key Input -->
+        <div class="form-group" id="api-key-group">
+          <div class="label-with-link">
+            <label for="api-key-input">API Key</label>
+            <a id="api-key-help-link" href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">
+              Get free Gemini key <i data-lucide="external-link"></i>
+            </a>
+          </div>
+          <div class="password-wrapper">
+            <input
+              type="password"
+              id="api-key-input"
+              class="form-control"
+              placeholder="Paste your API key here (AIza... or sk-...)"
+            >
+            <button type="button" id="toggle-key-visibility" class="icon-btn eye-btn">
+              <i data-lucide="eye" id="eye-icon"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Model Select -->
+        <div class="form-group">
+          <label for="model-select">Model</label>
+          <select id="model-select" class="form-control">
+            <!-- Dynamically populated based on provider -->
+          </select>
+        </div>
+
+        <!-- System Prompt -->
+        <div class="form-group">
+          <label for="system-prompt-input">System Instructions (Optional)</label>
+          <textarea
+            id="system-prompt-input"
+            class="form-control"
+            rows="2"
+            placeholder="You are a helpful, brilliant, and friendly AI assistant."
+          ></textarea>
+        </div>
+
+        <!-- Chat History Backup -->
+        <div class="form-group">
+          <label>Chat Data Management</label>
+          <div style="display:flex; gap:10px; margin-top:4px;">
+            <button type="button" id="export-chats-btn" class="btn-secondary" style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px;">
+              <i data-lucide="download" style="width:16px;height:16px"></i> Export Chats
+            </button>
+            <button type="button" id="import-chats-btn" class="btn-secondary" style="flex:1; display:flex; align-items:center; justify-content:center; gap:6px;">
+              <i data-lucide="upload" style="width:16px;height:16px"></i> Import Chats
+            </button>
+            <input type="file" id="import-file-input" accept=".json" style="display:none;">
+          </div>
+        </div>
+
+        <!-- Connection Test Status -->
+        <div id="test-connection-status" class="test-status hidden"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="test-key-btn" class="btn-secondary">Test Connection</button>
+        <button id="save-settings-btn" class="btn-primary">Save Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
+
