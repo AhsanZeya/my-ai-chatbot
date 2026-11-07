@@ -14,6 +14,10 @@ const PROVIDER_MODELS = {
     { id: 'gpt-4o-mini', name: 'GPT-4o mini (Fast & Affordable)' },
     { id: 'gpt-4o', name: 'GPT-4o (Flagship Model)' }
   ],
+  anthropic: [
+    { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet (Latest & Flagship)' },
+    { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku (Fast & Efficient)' }
+  ],
   openrouter: [
     { id: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash (Free via OpenRouter)' },
     { id: 'meta-llama/llama-3.3-70b-instruct:free', name: 'Llama 3.3 70B (Free)' },
@@ -507,6 +511,8 @@ async function handleSendMessage() {
       responseText = await streamDemoResponse(text, botBubble);
     } else if (state.settings.provider === 'gemini') {
       responseText = await streamGeminiResponse(currentChat.messages, botBubble);
+    } else if (state.settings.provider === 'anthropic') {
+      responseText = await streamAnthropicResponse(currentChat.messages, botBubble);
     } else if (state.settings.provider === 'openai' || state.settings.provider === 'openrouter') {
       responseText = await streamOpenAICompatibleResponse(currentChat.messages, botBubble);
     }
@@ -770,6 +776,84 @@ async function streamOpenAICompatibleResponse(messages, targetBubble) {
   return accumulatedText;
 }
 
+// --- Anthropic Claude Streaming Integration ---
+async function streamAnthropicResponse(messages, targetBubble) {
+  const { apiKey, model, systemPrompt } = state.settings;
+
+  if (!apiKey) {
+    throw new Error('No Anthropic API key provided. Open Settings to add your key.');
+  }
+
+  const formattedMessages = [];
+  messages.forEach(m => {
+    if (m.content && m.content.trim()) {
+      formattedMessages.push({ role: m.role, content: m.content });
+    }
+  });
+
+  const bodyData = {
+    model: model || 'claude-3-5-sonnet-20241022',
+    max_tokens: 4096,
+    messages: formattedMessages,
+    stream: true
+  };
+
+  if (systemPrompt && systemPrompt.trim()) {
+    bodyData.system = systemPrompt;
+  }
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify(bodyData),
+    signal: state.abortController.signal
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const message = errorData.error?.message || `Anthropic API returned status ${response.status}`;
+    throw new Error(message);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let accumulatedText = '';
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop();
+
+    for (const line of lines) {
+      const cleanLine = line.trim();
+      if (!cleanLine.startsWith('data:')) continue;
+      const jsonStr = cleanLine.replace(/^data:\s*/, '');
+
+      try {
+        const parsed = JSON.parse(jsonStr);
+        if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+          accumulatedText += parsed.delta.text;
+          targetBubble.innerHTML = renderMarkdown(accumulatedText);
+          scrollToBottom();
+        } else if (parsed.type === 'message_stop') {
+          return accumulatedText;
+        }
+      } catch (e) {}
+    }
+  }
+
+  return accumulatedText;
+}
+
 // --- Demo Mode Streaming (No Key Needed) ---
 async function streamDemoResponse(userPrompt, targetBubble) {
   const simulatedResponse = `👋 **Hello! You are running in Demo Mode.**\n\nI can help you with anything! Since this website is hosted statically on **GitHub Pages**, here is how to get real AI answers:\n\n1. Click the **Settings (API Key)** button in the sidebar or top bar.\n2. Select **Google Gemini (Recommended - Free Tier)**.\n3. Grab a free API key from [Google AI Studio](https://aistudio.google.com/app/apikey) and paste it.\n4. Save settings!\n\nHere is an example code block to demonstrate syntax highlighting:\n\`\`\`javascript\nfunction greet(name) {\n  console.log(\`Hello, \${name}! Your GitHub Pages chatbot is live! 🚀\`);\n}\ngreet("World");\n\`\`\`\n\n*Your question was:* "${userPrompt}"`;
@@ -835,6 +919,10 @@ function updateProviderUI() {
     elements.apiKeyHelpLink.href = 'https://platform.openai.com/api-keys';
     elements.apiKeyHelpLink.innerHTML = 'Get OpenAI key <i data-lucide="external-link"></i>';
     elements.apiKeyInput.placeholder = 'sk-...';
+  } else if (provider === 'anthropic') {
+    elements.apiKeyHelpLink.href = 'https://console.anthropic.com/settings/keys';
+    elements.apiKeyHelpLink.innerHTML = 'Get Claude key <i data-lucide="external-link"></i>';
+    elements.apiKeyInput.placeholder = 'sk-ant-api03-...';
   } else if (provider === 'openrouter') {
     elements.apiKeyHelpLink.href = 'https://openrouter.ai/keys';
     elements.apiKeyHelpLink.innerHTML = 'Get OpenRouter key <i data-lucide="external-link"></i>';
@@ -893,6 +981,25 @@ async function testConnection() {
       const res = await fetch(url, {
         method: 'GET',
         headers: { 'x-goog-api-key': apiKey }
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error?.message || `Status ${res.status}`);
+      }
+    } else if (provider === 'anthropic') {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: model || 'claude-3-5-sonnet-20241022',
+          max_tokens: 10,
+          messages: [{ role: 'user', content: 'Hi' }]
+        })
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
