@@ -6,11 +6,9 @@
 // --- Model Catalogs ---
 const PROVIDER_MODELS = {
   gemini: [
-    { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash (Latest & Free)' },
-    { id: 'gemini-flash-latest', name: 'Gemini Flash Latest' },
-    { id: 'gemini-pro-latest', name: 'Gemini Pro Latest' },
-    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
-    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' }
+    { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash-Lite (Super Fast & High Availability)' },
+    { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
+    { id: 'gemini-flash-latest', name: 'Gemini Flash Latest' }
   ],
   openai: [
     { id: 'gpt-4o-mini', name: 'GPT-4o mini (Fast & Affordable)' },
@@ -30,7 +28,7 @@ const PROVIDER_MODELS = {
 const DEFAULT_SETTINGS = {
   provider: 'gemini',
   apiKey: '',
-  model: 'gemini-3.8-flash',
+  model: 'gemini-3.1-flash-lite',
   systemPrompt: 'You are a helpful, brilliant, and friendly AI assistant. Format your responses nicely with markdown when appropriate.',
   temperature: 0.7
 };
@@ -111,9 +109,9 @@ function loadFromStorage() {
     const savedSettings = localStorage.getItem('chatgpt_clone_settings');
     if (savedSettings) {
       state.settings = { ...DEFAULT_SETTINGS, ...JSON.parse(savedSettings) };
-      // Auto-migrate retired models to gemini-3.8-flash
-      if (['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'].includes(state.settings.model)) {
-        state.settings.model = 'gemini-3.8-flash';
+      // Auto-migrate retired or high-demand models to gemini-3.1-flash-lite
+      if (['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.5-flash', 'gemini-3.8-flash'].includes(state.settings.model)) {
+        state.settings.model = 'gemini-3.1-flash-lite';
         saveSettingsToStorage();
       }
     }
@@ -528,9 +526,10 @@ async function streamGeminiResponse(messages, targetBubble) {
     };
   }
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`;
+  let activeModel = model;
+  let endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`;
 
-  const response = await fetch(endpoint, {
+  let response = await fetch(endpoint, {
     method: 'POST',
     headers: { 
       'Content-Type': 'application/json',
@@ -539,6 +538,23 @@ async function streamGeminiResponse(messages, targetBubble) {
     body: JSON.stringify(requestBody),
     signal: state.abortController.signal
   });
+
+  // If high demand or 503, automatically fallback to gemini-3.1-flash-lite
+  if (!response.ok && (response.status === 503 || response.status === 429)) {
+    if (activeModel !== 'gemini-3.1-flash-lite') {
+      activeModel = 'gemini-3.1-flash-lite';
+      endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`;
+      response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey
+        },
+        body: JSON.stringify(requestBody),
+        signal: state.abortController.signal
+      });
+    }
+  }
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
