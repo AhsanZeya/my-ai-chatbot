@@ -536,10 +536,14 @@ async function handleSendMessage() {
       saveChatsToStorage();
     }
   } finally {
-    botBubble.classList.remove('typing-cursor');
-    attachCodeCopyButtons(botBubble);
-    if (responseText) {
-      addBotMessageActions(botBubble, responseText);
+    try {
+      botBubble.classList.remove('typing-cursor');
+      attachCodeCopyButtons(botBubble);
+      if (typeof addBotMessageActions === 'function' && responseText) {
+        addBotMessageActions(botBubble, responseText);
+      }
+    } catch (e) {
+      console.warn('Post-cleanup error:', e);
     }
     setGenerationState(false);
   }
@@ -562,6 +566,7 @@ function stopGeneration() {
   if (state.abortController) {
     state.abortController.abort();
   }
+  setGenerationState(false);
 }
 
 // --- Gemini Streaming Integration ---
@@ -1117,6 +1122,7 @@ function init() {
   renderChatList();
   renderMessages();
   setupEventListeners();
+  setGenerationState(false);
   autoResizeInput();
   lucide.createIcons();
 }
