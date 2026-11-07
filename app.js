@@ -6,9 +6,11 @@
 // --- Model Catalogs ---
 const PROVIDER_MODELS = {
   gemini: [
-    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash (Recommended, Fastest & Free)' },
-    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (Free Tier)' },
-    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro (High Reasoning)' }
+    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash (Fast & Free)' },
+    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
+    { id: 'gemini-flash-latest', name: 'Gemini Flash Latest' },
+    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
+    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' }
   ],
   openai: [
     { id: 'gpt-4o-mini', name: 'GPT-4o mini (Fast & Affordable)' },
@@ -521,11 +523,14 @@ async function streamGeminiResponse(messages, targetBubble) {
     };
   }
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`;
 
   const response = await fetch(endpoint, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey
+    },
     body: JSON.stringify(requestBody),
     signal: state.abortController.signal
   });
@@ -778,13 +783,10 @@ async function testConnection() {
 
   try {
     if (provider === 'gemini') {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`;
       const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: 'Hello!' }] }]
-        })
+        method: 'GET',
+        headers: { 'x-goog-api-key': apiKey }
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
