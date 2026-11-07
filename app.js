@@ -301,6 +301,9 @@ function appendMessageElement(role, content = '', isStreaming = false) {
   } else {
     bubble.innerHTML = renderMarkdown(content);
     attachCodeCopyButtons(bubble);
+    if (!isStreaming && content) {
+      addBotMessageActions(bubble, content);
+    }
   }
 
   row.appendChild(bubble);
@@ -370,6 +373,73 @@ function attachCodeCopyButtons(container) {
     wrapper.appendChild(pre);
   });
 
+  lucide.createIcons();
+}
+
+function addBotMessageActions(bubble, rawText) {
+  if (bubble.querySelector('.bot-actions-toolbar')) return;
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'bot-actions-toolbar';
+  toolbar.style.display = 'flex';
+  toolbar.style.gap = '8px';
+  toolbar.style.marginTop = '8px';
+  toolbar.style.paddingTop = '4px';
+
+  // Copy Whole Message Button
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'icon-btn';
+  copyBtn.title = 'Copy message';
+  copyBtn.innerHTML = '<i data-lucide="copy" style="width:14px;height:14px"></i>';
+  copyBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(rawText);
+      copyBtn.innerHTML = '<i data-lucide="check" style="width:14px;height:14px"></i>';
+      lucide.createIcons();
+      setTimeout(() => {
+        copyBtn.innerHTML = '<i data-lucide="copy" style="width:14px;height:14px"></i>';
+        lucide.createIcons();
+      }, 2000);
+    } catch (e) {
+      console.error(e);
+    }
+  });
+
+  // Read Aloud (Speak) Button
+  const speakBtn = document.createElement('button');
+  speakBtn.className = 'icon-btn';
+  speakBtn.title = 'Read aloud';
+  speakBtn.innerHTML = '<i data-lucide="volume-2" style="width:14px;height:14px"></i>';
+
+  speakBtn.addEventListener('click', () => {
+    if (!window.speechSynthesis) return;
+
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+      speakBtn.innerHTML = '<i data-lucide="volume-2" style="width:14px;height:14px"></i>';
+      lucide.createIcons();
+      return;
+    }
+
+    const cleanText = rawText.replace(/[#*`_~]/g, '');
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.onend = () => {
+      speakBtn.innerHTML = '<i data-lucide="volume-2" style="width:14px;height:14px"></i>';
+      lucide.createIcons();
+    };
+    utterance.onerror = () => {
+      speakBtn.innerHTML = '<i data-lucide="volume-2" style="width:14px;height:14px"></i>';
+      lucide.createIcons();
+    };
+
+    window.speechSynthesis.speak(utterance);
+    speakBtn.innerHTML = '<i data-lucide="volume-x" style="width:14px;height:14px"></i>';
+    lucide.createIcons();
+  });
+
+  toolbar.appendChild(copyBtn);
+  toolbar.appendChild(speakBtn);
+  bubble.appendChild(toolbar);
   lucide.createIcons();
 }
 
@@ -468,6 +538,9 @@ async function handleSendMessage() {
   } finally {
     botBubble.classList.remove('typing-cursor');
     attachCodeCopyButtons(botBubble);
+    if (responseText) {
+      addBotMessageActions(botBubble, responseText);
+    }
     setGenerationState(false);
   }
 }
@@ -956,6 +1029,21 @@ function setupEventListeners() {
   elements.providerSelect.addEventListener('change', updateProviderUI);
   elements.saveSettingsBtn.addEventListener('click', saveSettings);
   elements.testKeyBtn.addEventListener('click', testConnection);
+
+  // Clear Key Button
+  const removeKeyBtn = document.getElementById('remove-key-btn');
+  if (removeKeyBtn) {
+    removeKeyBtn.addEventListener('click', () => {
+      if (confirm('Are you sure you want to remove your saved API key from this browser?')) {
+        state.settings.apiKey = '';
+        elements.apiKeyInput.value = '';
+        saveSettingsToStorage();
+        elements.testConnectionStatus.className = 'test-status';
+        elements.testConnectionStatus.textContent = '🗑️ API key has been completely removed from this browser.';
+        elements.testConnectionStatus.classList.remove('hidden');
+      }
+    });
+  }
 
   // Export / Import Chats
   const exportBtn = document.getElementById('export-chats-btn');
