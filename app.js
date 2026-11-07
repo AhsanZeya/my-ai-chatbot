@@ -6,11 +6,11 @@
 // --- Model Catalogs ---
 const PROVIDER_MODELS = {
   gemini: [
-    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash (Fast & Free)' },
-    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
+    { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash (Latest & Free)' },
     { id: 'gemini-flash-latest', name: 'Gemini Flash Latest' },
-    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
-    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' }
+    { id: 'gemini-pro-latest', name: 'Gemini Pro Latest' },
+    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
+    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' }
   ],
   openai: [
     { id: 'gpt-4o-mini', name: 'GPT-4o mini (Fast & Affordable)' },
@@ -30,7 +30,7 @@ const PROVIDER_MODELS = {
 const DEFAULT_SETTINGS = {
   provider: 'gemini',
   apiKey: '',
-  model: 'gemini-2.0-flash',
+  model: 'gemini-3.8-flash',
   systemPrompt: 'You are a helpful, brilliant, and friendly AI assistant. Format your responses nicely with markdown when appropriate.',
   temperature: 0.7
 };
@@ -111,6 +111,11 @@ function loadFromStorage() {
     const savedSettings = localStorage.getItem('chatgpt_clone_settings');
     if (savedSettings) {
       state.settings = { ...DEFAULT_SETTINGS, ...JSON.parse(savedSettings) };
+      // Auto-migrate retired models to gemini-3.8-flash
+      if (['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'].includes(state.settings.model)) {
+        state.settings.model = 'gemini-3.8-flash';
+        saveSettingsToStorage();
+      }
     }
 
     const savedChats = localStorage.getItem('chatgpt_clone_chats');
