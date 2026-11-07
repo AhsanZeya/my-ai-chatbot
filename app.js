@@ -880,6 +880,64 @@ function setupEventListeners() {
   elements.sendBtn.addEventListener('click', handleSendMessage);
   elements.stopBtn.addEventListener('click', stopGeneration);
 
+  // Speech Recognition (Voice Input)
+  const micBtn = document.getElementById('mic-btn');
+  let recognition = null;
+  let isRecording = false;
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (SpeechRecognition && micBtn) {
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = navigator.language || 'en-US';
+
+    recognition.onstart = () => {
+      isRecording = true;
+      micBtn.classList.add('recording');
+      micBtn.title = 'Listening... click to stop';
+    };
+
+    recognition.onresult = (event) => {
+      let transcript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      elements.chatInput.value = transcript;
+      autoResizeInput();
+    };
+
+    recognition.onerror = (event) => {
+      console.warn('Speech recognition error:', event.error);
+      stopRecording();
+    };
+
+    recognition.onend = () => {
+      stopRecording();
+    };
+
+    function stopRecording() {
+      isRecording = false;
+      micBtn.classList.remove('recording');
+      micBtn.title = 'Voice Input (Speech to text)';
+    }
+
+    micBtn.addEventListener('click', () => {
+      if (!isRecording) {
+        try {
+          recognition.start();
+        } catch (e) {
+          stopRecording();
+        }
+      } else {
+        recognition.stop();
+        stopRecording();
+      }
+    });
+  } else if (micBtn) {
+    micBtn.style.display = 'none';
+  }
+
   // Suggestions clicks
   document.querySelectorAll('.suggestion-card').forEach(btn => {
     btn.addEventListener('click', () => {
