@@ -81,17 +81,12 @@ html, body {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  transition: width 0.25s ease, transform 0.25s ease, opacity 0.2s ease;
   z-index: 100;
-  overflow: hidden;
+  transition: all 0.2s ease;
 }
 
 .sidebar.collapsed {
-  width: 0 !important;
-  min-width: 0 !important;
-  border-right: none !important;
-  opacity: 0;
-  pointer-events: none;
+  display: none !important;
 }
 
 .sidebar-header {

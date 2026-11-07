@@ -611,24 +611,22 @@ async function streamGeminiResponse(messages, targetBubble) {
     };
   }
 
+  // Priority list of fast fallback models if high demand occurs
+  const candidateModels = [
+    model,
+    'gemini-flash-lite-latest',
+    'gemini-3.1-flash-lite',
+    'gemini-3.8-flash'
+  ];
+  const uniqueModels = [...new Set(candidateModels)];
+
+  let response = null;
   let activeModel = model;
-  let endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`;
 
-  let response = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 
-      'Content-Type': 'application/json',
-      'x-goog-api-key': apiKey
-    },
-    body: JSON.stringify(requestBody),
-    signal: state.abortController.signal
-  });
-
-  // If high demand or 503, automatically fallback to gemini-3.1-flash-lite
-  if (!response.ok && (response.status === 503 || response.status === 429)) {
-    if (activeModel !== 'gemini-3.1-flash-lite') {
-      activeModel = 'gemini-3.1-flash-lite';
-      endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`;
+  for (const m of uniqueModels) {
+    activeModel = m;
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${m}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`;
+    try {
       response = await fetch(endpoint, {
         method: 'POST',
         headers: { 
@@ -638,12 +636,27 @@ async function streamGeminiResponse(messages, targetBubble) {
         body: JSON.stringify(requestBody),
         signal: state.abortController.signal
       });
+
+      if (response.ok) {
+        break; // Successfully connected!
+      }
+
+      // If high demand (503), rate limit (429) or model not found (404), try next model!
+      if (response.status === 503 || response.status === 429 || response.status === 404) {
+        console.warn(`Model ${m} returned ${response.status}. Automatically trying next fallback model...`);
+        continue;
+      } else {
+        break;
+      }
+    } catch (e) {
+      if (e.name === 'AbortError') throw e;
+      continue;
     }
   }
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const message = errorData.error?.message || `Gemini API returned status ${response.status}`;
+  if (!response || !response.ok) {
+    const errorData = response ? await response.json().catch(() => ({})) : {};
+    const message = errorData.error?.message || `Gemini API returned status ${response ? response.status : 'failed'}`;
     throw new Error(message);
   }
 
